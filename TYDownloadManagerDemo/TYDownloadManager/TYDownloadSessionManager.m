@@ -669,7 +669,10 @@ didFinishDownloadingToURL:(NSURL *)location
     }
     // 缓存resumeData
     if (resumeData) {
-        downloadModel.resumeData = resumeData;
+        // 移除 NSURLSessionResumeByteRange
+        NSMutableDictionary *resumeDic = [self dictionaryWithData:resumeData].mutableCopy;
+        [resumeDic removeObjectForKey:@"NSURLSessionResumeByteRange"];
+        downloadModel.resumeData = [self dataWithDictionary:resumeDic];
         [self createDirectory:_downloadDirectory];
         [downloadModel.resumeData writeToFile:[self resumeDataPathWithDownloadURL:downloadModel.downloadURL] atomically:YES];
     }else {
@@ -722,6 +725,28 @@ didFinishDownloadingToURL:(NSURL *)location
 {
     if (self.backgroundSessionCompletionHandler) {
         self.backgroundSessionCompletionHandler();
+    }
+}
+
+#pragma mark - (解决IOS11版本，下载文件不完整Bug)
+- (NSDictionary *)dictionaryWithData:(NSData *)data {
+    CFPropertyListFormat plistFormat = kCFPropertyListXMLFormat_v1_0;
+    CFPropertyListRef plist = CFPropertyListCreateWithData(kCFAllocatorDefault, (__bridge CFDataRef)data, kCFPropertyListImmutable, &plistFormat, NULL);
+    if ([(__bridge id)plist isKindOfClass:[NSDictionary class]]) {
+        return (__bridge NSDictionary *)plist;
+    } else {
+        CFRelease(plist);
+        return nil;
+    }
+}
+
+- (NSData *)dataWithDictionary:(NSDictionary *)dic {
+    CFDataRef data = CFPropertyListCreateData(kCFAllocatorDefault, (__bridge CFPropertyListRef)dic, kCFPropertyListXMLFormat_v1_0, kCFPropertyListImmutable, NULL);
+    if ([(__bridge id)data isKindOfClass:[NSData class]]) {
+        return (__bridge NSData *)data;
+    } else {
+        CFRelease(data);
+        return nil;
     }
 }
 
